@@ -3,4 +3,5 @@ openpyxl
 rapidfuzz
 dotenv
 streamlit
+pyarrow<15
 altair==4.2.2
