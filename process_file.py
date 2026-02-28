@@ -78,6 +78,21 @@ def norm(val):
     return '' if s in ('nan', 'none', 'nat') else s
 
 
+def norm_reg(val):
+    """Normalize registry number: strip .0 float suffix, lowercase."""
+    s = str(val).strip()
+    if s.lower() in ('nan', 'none', 'nat', ''):
+        return ''
+    if s.count('.') == 1:
+        try:
+            f = float(s)
+            if f == int(f):
+                s = str(int(f))
+        except (ValueError, OverflowError):
+            pass
+    return s.lower()
+
+
 def norm_code(val):
     """Normalize barcode/HS code to a plain number string."""
     s = str(val).strip()
@@ -230,6 +245,20 @@ def _empty_result(business, match_type, score=None):
     }
 
 
+def _prefer_brand_match(candidates):
+    """
+    Among candidates with the same full_text, prefer the one whose business
+    name appears in the brand (e.g., ETI wins for brand 'Eti AG').
+    Falls back to the first candidate if no brand-business match found.
+    """
+    for c in candidates:
+        biz = c.get('business', '').lower()
+        brand = c.get('brand', '').lower()
+        if biz and brand and biz in brand:
+            return c
+    return candidates[0]
+
+
 def match_row(row, biz_lookup, biz_registry, del_lookup, del_registry, threshold, del_threshold):
     """
     Match a raw row against business and deleted dictionaries.
@@ -241,7 +270,7 @@ def match_row(row, biz_lookup, biz_registry, del_lookup, del_registry, threshold
       4. Deleted: exact (reg+code) key → fuzzy text >= del_threshold
       5. No match → Uncertain
     """
-    reg = norm(row['регистр'])
+    reg = norm_reg(row['регистр'])
     code = norm_code(row['бараакод'])
     key = (reg, code)
 
@@ -263,7 +292,8 @@ def match_row(row, biz_lookup, biz_registry, del_lookup, del_registry, threshold
         texts = [c['full_text'] for c in candidates]
         result = process.extractOne(search_text, texts, scorer=fuzz.WRatio)
         if result and result[1] >= threshold:
-            matched = next(c for c in candidates if c['full_text'] == result[0])
+            same_text = [c for c in candidates if c['full_text'] == result[0]]
+            matched = _prefer_brand_match(same_text)
             return {k: v for k, v in matched.items() if k != 'full_text'} | {
                 'match_type': 'business_code_fuzzy', 'score': result[1],
             }
@@ -275,8 +305,20 @@ def match_row(row, biz_lookup, biz_registry, del_lookup, del_registry, threshold
         if texts:
             result = process.extractOne(search_text, texts, scorer=fuzz.WRatio)
             if result and result[1] >= threshold:
-                entry = next((t, k, b) for (t, k, b) in choices if t == result[0])
-                product = biz_lookup[entry[1]][0]
+                same_text = [(t, k, b) for (t, k, b) in choices if t == result[0]]
+                # Prefer entry whose business name matches the brand
+                best_entry = same_text[0]
+                for entry in same_text:
+                    products = biz_lookup[entry[1]]
+                    for p in products:
+                        if p['business'].lower() in p.get('brand', '').lower():
+                            best_entry = entry
+                            break
+                product = next(
+                    (p for p in biz_lookup[best_entry[1]]
+                     if p['business'].lower() in p.get('brand', '').lower()),
+                    biz_lookup[best_entry[1]][0]
+                )
                 return {k: v for k, v in product.items() if k != 'full_text'} | {
                     'match_type': 'business_registry_fuzzy', 'score': result[1],
                 }
