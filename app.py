@@ -130,7 +130,8 @@ if uploaded is not None:
         summary_rows.append({"Sheet": "HS Deleted", "Rows": hs_del_total, "% of Total": f"{hs_del_total/total_raw*100:.1f}%"})
         summary_rows.append({"Sheet": "Uncertain", "Rows": unc_total, "% of Total": f"{unc_total/total_raw*100:.1f}%"})
 
-        st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+        summary_df = pd.DataFrame(summary_rows)
+        st.dataframe(summary_df.style.hide(axis="index"), use_container_width=True)
 
         # ── Write to in-memory Excel & offer download ────
         buf = io.BytesIO()
