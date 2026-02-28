@@ -2,4 +2,4 @@ pandas
 openpyxl
 rapidfuzz
 python-dotenv
-streamlit
+streamlit>=1.31.0
