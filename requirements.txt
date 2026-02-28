@@ -1,7 +1,7 @@
 pandas
 openpyxl
 rapidfuzz
-dotenv
+python-dotenv
 streamlit==1.45.1
 numpy<2
 pyarrow<15
