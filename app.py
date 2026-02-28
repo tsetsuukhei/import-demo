@@ -131,7 +131,7 @@ if uploaded is not None:
         summary_rows.append({"Sheet": "Uncertain", "Rows": unc_total, "% of Total": f"{unc_total/total_raw*100:.1f}%"})
 
         summary_df = pd.DataFrame(summary_rows)
-        st.dataframe(summary_df.style.hide(axis="index"), use_container_width=True)
+        st.table(summary_df)
 
         # ── Write to in-memory Excel & offer download ────
         buf = io.BytesIO()
