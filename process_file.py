@@ -247,14 +247,21 @@ def _empty_result(business, match_type, score=None):
 
 def _prefer_brand_match(candidates):
     """
-    Among candidates with the same full_text, prefer the one whose business
-    name appears in the brand (e.g., ETI wins for brand 'Eti AG').
-    Falls back to the first candidate if no brand-business match found.
+    Among candidates with the same full_text, pick the best business:
+      1. Prefer the one whose business name appears in the brand (ETI → 'Eti AG')
+      2. Prefer the one with a real category (not 'Not', '', '0')
+      3. Fall back to first candidate
     """
+    # Priority 1: brand contains business name
     for c in candidates:
         biz = c.get('business', '').lower()
         brand = c.get('brand', '').lower()
         if biz and brand and biz in brand:
+            return c
+    # Priority 2: real category (not 'Not', '', '0')
+    for c in candidates:
+        cat = c.get('category', '').strip()
+        if cat and cat not in ('Not', '0'):
             return c
     return candidates[0]
 
